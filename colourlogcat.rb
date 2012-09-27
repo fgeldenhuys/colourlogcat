@@ -12,9 +12,10 @@ termw = `tput cols`.to_i
 last_time = Time.now
 
 ARGF.each_line {|line|
-	timedif = Time.now - last_time
+	now = Time.now
+	timedif = now - last_time
 	if timedif > 5
-		puts ('+%.2f' % timedif.to_s + ' seconds').center(termw).cyan.on_blue
+		puts ('+%.2f' % timedif.to_s + ' seconds    ' + now.strftime('%H:%M:%S')).center(termw).cyan.on_blue
 	end
 
 	if m = line.match(/(\w)\/(\w+)[^:]*:\s*(.*)/)

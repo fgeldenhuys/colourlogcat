@@ -18,7 +18,7 @@ ARGF.each_line {|line|
 		puts ('+%.2f' % timedif.to_s + ' seconds    ' + now.strftime('%H:%M:%S')).center(termw).cyan.on_blue
 	end
 
-	if m = line.force_encoding('binary').match(/(\w)\/(\w+)[^:]*:\s*(.*)/)
+	if m = line.force_encoding('binary').match(/(\w)\/([^\()]+)[^:]*:\s*(.*)/)
 		
 		level = m[1].to_s.center(3)
 		if m[1] == 'V' then
@@ -35,7 +35,7 @@ ARGF.each_line {|line|
 			level = level.black.on_light_magenta
 		end
 		
-		tag = m[2]
+		tag = m[2].strip
 		colour = $tag_colours[tag]
 		if not colour then
 			colour = $tag_colours[tag] = $available_colours[$next_colour]
@@ -46,7 +46,7 @@ ARGF.each_line {|line|
 		tag = tag.rjust($max_tag_length)
 		tag = tag.colorize(:color => colour, :background => :default)
 
-		message = m[3]
+		message = m[3].strip
 		pad = $max_tag_length + 5
 		space = termw - pad - 1
 

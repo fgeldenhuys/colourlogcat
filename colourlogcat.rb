@@ -18,7 +18,7 @@ ARGF.each_line {|line|
 		puts ('+%.2f' % timedif.to_s + ' seconds    ' + now.strftime('%H:%M:%S')).center(termw).cyan.on_blue
 	end
 
-	if m = line.match(/(\w)\/(\w+)[^:]*:\s*(.*)/)
+	if m = line.force_encoding('binary').match(/(\w)\/(\w+)[^:]*:\s*(.*)/)
 		
 		level = m[1].to_s.center(3)
 		if m[1] == 'V' then

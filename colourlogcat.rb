@@ -43,6 +43,7 @@ ARGF.each_line {|line|
 			$next_colour = 1 if $next_colour >= $available_colours.size
 		end
 		$max_tag_length = tag.size + 2 if tag.size > $max_tag_length
+		$max_tag_length = 30 if $max_tag_length > 30
 		tag = tag.rjust($max_tag_length)
 		tag = tag.colorize(:color => colour, :background => :default)
 

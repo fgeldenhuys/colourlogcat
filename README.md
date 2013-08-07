@@ -3,11 +3,13 @@ colourlogcat
 
 Colour adb logcat to make it more readable.
 
+
 *Scala version*
 
 adb logcat | ./colourlogcat.scala
 
 You need Scala.
+
 
 *Ruby version*
 

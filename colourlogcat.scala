@@ -47,6 +47,10 @@ var nameColourCycle = 0
 
 var nameLength = 8
 
+def cols = (scala.sys.process.Process("tput cols")!!).trim().toInt
+
+def space(n: Int) = Seq.fill[String](n)(" ").mkString
+
 def getNameColour(name: String, proc: Int): String = {
 	if (PresetNameColours.contains(name)) {
 		PresetNameColours(name)
@@ -81,9 +85,16 @@ def paintMessage(message: String): String = {
 	url
 }
 
+var mark = System.currentTimeMillis
 var line = readLine()
 while (line != null) {
-	//println(line)
+	val dt = System.currentTimeMillis - mark
+	if (dt > 1000) {
+		val c = cols
+		val show = s"$dt"
+		val s = (c - show.length) / 2
+		println(s"$BOLD$CYAN$BLUE_B" + space(s) + show + space(s) + RESET)
+	}
 	for (parse(rawTag, rawName, rawProc, rawMessage) <- parse.findAllIn(line)) {
 		val tag = rawTag.trim()
 		val name = trimName(rawName.trim())
@@ -91,7 +102,8 @@ while (line != null) {
 		val nameColour = getNameColour(rawName.trim(), proc)
 		val message = paintMessage(rawMessage.trim())
 		val tagColour = TagColours.get(tag).getOrElse(DefaultTagColour)
-		println(f"$nameColour%s$name%18s $tagColour%s $tag%1s $RESET%s $message%s")
+		println(f"$nameColour$name%18s $tagColour $tag%1s $RESET $message")
 	}
+	mark = System.currentTimeMillis
 	line = readLine()
 }

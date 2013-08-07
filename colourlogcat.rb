@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
+
+require 'rubygems'
 require 'colorize'
 
 $available_colours = [:red, :green, :yellow, :blue, :magenta, :cyan, :light_red, :light_green, :light_yellow, :light_blue, :light_magenta, :light_cyan]

@@ -12,7 +12,6 @@ val CycleColours = Array(
 		s"$MAGENTA$GREEN_B", 
 		s"$WHITE$GREEN_B", 
 		s"$YELLOW$GREEN_B",
-		s"$BOLD$BLUE$GREEN_B",
 		s"$BOLD$CYAN$GREEN_B",
 		s"$BOLD$BLACK$GREEN_B", 
 		s"$BOLD$MAGENTA$GREEN_B", 
@@ -21,14 +20,11 @@ val CycleColours = Array(
 	)
 val PresetNameColours = Map(
 		"System.err" -> s"$BLACK$RED_B",
-		"dalvikvm" -> s"$RESET$MAGENTA",
-		"dalvikvm-heap" -> s"$RESET$MAGENTA",
-		"ActivityManager" -> s"$RESET$GREEN",
-		"PackageManager" -> s"$RESET$CYAN",
 		"libEGL" -> s"$RESET$BLUE",
+		"PowerUI" -> s"$RESET$BLUE",
 		"wpa_supplicant" -> s"$RESET$YELLOW",
-		"InputMethodManager" -> s"$RESET$BLUE",
-		"System.out" -> s"$RESET$YELLOW"
+		"System.out" -> s"$RESET$YELLOW",
+		"TabletStatusBar" -> s"$RESET$GREEN"
 	)
 val TagColours = Map(
 		"V" -> s"$RESET$BOLD$WHITE$BLUE_B",
@@ -49,10 +45,18 @@ val parseUrl = """(https?:\/\/)([\da-z\.-]+)\.([a-z\.]{2,6})\:?([\/\w \.-\?=]*)*
 val nameColours = mutable.Map.empty[Int, String]
 var nameColourCycle = 0
 
+var nameLength = 8
+
 def getNameColour(name: String, proc: Int): String = {
 	if (PresetNameColours.contains(name)) {
 		PresetNameColours(name)
 	}
+	else if (name.startsWith("dalvik")) s"$RESET$MAGENTA"
+	else if (name.endsWith("Service")) s"$RESET$CYAN"
+	else if (name.endsWith("Manager")) s"$RESET$BLUE"
+	else if (name.endsWith("Monitor")) s"$RESET$YELLOW"
+	else if (name.endsWith("Scheduler")) s"$RESET$BOLD$BLUE"
+	else if (name.endsWith("Thread")) s"$RESET$BOLD$MAGENTA"
 	else {
 		if (!nameColours.contains(proc)) {
 			nameColours(proc) = CycleColours(nameColourCycle)
@@ -61,6 +65,12 @@ def getNameColour(name: String, proc: Int): String = {
 		}
 		nameColours(proc)
 	}
+}
+
+def trimName(name: String): String = {
+	if (name.length > nameLength) nameLength = name.length
+	if (nameLength > MaxNameLength) nameLength = MaxNameLength
+	name take nameLength
 }
 
 def paintMessage(message: String): String = {
@@ -76,9 +86,9 @@ while (line != null) {
 	//println(line)
 	for (parse(rawTag, rawName, rawProc, rawMessage) <- parse.findAllIn(line)) {
 		val tag = rawTag.trim()
-		val name = rawName.trim().take(MaxNameLength)
+		val name = trimName(rawName.trim())
 		val proc = rawProc.trim().toInt
-		val nameColour = getNameColour(name, proc)
+		val nameColour = getNameColour(rawName.trim(), proc)
 		val message = paintMessage(rawMessage.trim())
 		val tagColour = TagColours.get(tag).getOrElse(DefaultTagColour)
 		println(f"$nameColour%s$name%18s $tagColour%s $tag%1s $RESET%s $message%s")

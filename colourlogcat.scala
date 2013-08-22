@@ -19,12 +19,14 @@ val CycleColours = Array(
 		s"$BOLD$YELLOW$GREEN_B"
 	)
 val PresetNameColours = Map(
+		"System.out" -> s"$RESET$YELLOW",
 		"System.err" -> s"$BLACK$RED_B",
 		"libEGL" -> s"$RESET$BLUE",
 		"PowerUI" -> s"$RESET$BLUE",
 		"wpa_supplicant" -> s"$RESET$YELLOW",
-		"System.out" -> s"$RESET$YELLOW",
-		"TabletStatusBar" -> s"$RESET$GREEN"
+		"TabletStatusBar" -> s"$RESET$GREEN",
+		"Settings" -> s"$RESET$CYAN",
+		"BroadcastQueue" -> s"$RESET$CYAN"
 	)
 val TagColours = Map(
 		"V" -> s"$RESET$BOLD$WHITE$BLUE_B",
@@ -40,12 +42,14 @@ val parse = """(\w)\/([^\(]+)\(\s*(\d+)\)\:(.*)""".r
 val parseTime = """\d\d\d\d\d\d\.\d\d\d\d\d\d\.\d\d\d""".r
 val parseBlock = """\[[\s\w\d_\.]+\]""".r
 val parseHttp = """GET|PUT|POST|DELETE""".r
-val parseUrl = """(https?:\/\/)([\da-z\.-]+)\.([a-z\.]{2,6})\:?([\/\w \.-\?=]*)*\/?""".r
+val parseUrl = """(https?:\/\/)([\da-z\.-]+)\.([a-z\.]{2,6})\:?([\/\w \.-\?=\-\&%]*)*\/?""".r
+val parseJsLog = """(\w+:\/\/\/[\da-z\.-]+)(:\d+:)""".r
 
 val nameColours = mutable.Map.empty[Int, String]
 var nameColourCycle = 0
 
-var nameLength = 8
+var nameLength = 5
+var reduceCounter = 0
 
 def cols = (scala.sys.process.Process("tput cols")!!).trim().toInt
 
@@ -72,17 +76,32 @@ def getNameColour(name: String, proc: Int): String = {
 }
 
 def trimName(name: String): String = {
-	if (name.length > nameLength) nameLength = name.length
+	if (name.length > nameLength) {
+		nameLength += 1
+		reduceCounter = 0
+	}
+	else if (name.length < nameLength) {
+		reduceCounter += 1
+		if (reduceCounter == 30) {
+			nameLength -= 1
+			reduceCounter = 0
+		}
+	}
+	else {
+		reduceCounter = 0
+	}
 	if (nameLength > MaxNameLength) nameLength = MaxNameLength
-	name take nameLength
+	val length = math.min(name.length, nameLength)
+	(" " * (nameLength - length)) + (name take nameLength)
 }
 
 def paintMessage(message: String): String = {
 	val timeStamps = parseTime replaceAllIn (message, s"$YELLOW$$0$RESET")
-	val blocks = parseBlock replaceAllIn (timeStamps, s"$BOLD$GREEN$BLUE_B$$0$RESET")
+	val blocks = parseBlock replaceAllIn (timeStamps, s"$BOLD$CYAN$$0$RESET")
 	val http = parseHttp replaceAllIn (blocks, s"$BOLD$YELLOW$$0$RESET")
 	val url = parseUrl replaceAllIn (http, s"$BOLD$BLUE$$0$RESET")
-	url
+	val jslog = parseJsLog replaceAllIn (url, s"$BOLD$MAGENTA$$1$RESET$YELLOW$$2$RESET")
+	jslog
 }
 
 var mark = System.currentTimeMillis
@@ -102,7 +121,7 @@ while (line != null) {
 		val nameColour = getNameColour(rawName.trim(), proc)
 		val message = paintMessage(rawMessage.trim())
 		val tagColour = TagColours.get(tag).getOrElse(DefaultTagColour)
-		println(f"$nameColour$name%18s $tagColour $tag%1s $RESET $message")
+		println(s"$nameColour$name $tagColour $tag $RESET $message")
 	}
 	mark = System.currentTimeMillis
 	line = readLine()

@@ -40,8 +40,8 @@ val DefaultTagColour = s"$RESET$BLUE_B"
 
 val parse = """(\w)\/([^\(]+)\(\s*(\d+)\)\:(.*)""".r
 val parseTime = """\d\d\d\d\d\d\.\d\d\d\d\d\d\.\d\d\d""".r
-val parseBlock = """\[[\s\w\d_\.]+\]""".r
-val parseHttp = """GET|PUT|POST|DELETE""".r
+val parseBlock = """\[[\s\w\d_\.\:<>\$]+\]""".r
+val parseEmphasis = """\s[A-Z_\-]+[A-Z_\-0-9]*\s""".r
 val parseUrl = """(https?:\/\/)([\da-z\.-]+)\.([a-z\.]{2,6})\:?([\/\w \.-\?=\-\&%]*)*\/?""".r
 val parseJsLog = """(\w+:\/\/\/[\da-z\.-]+)(:\d+:)""".r
 
@@ -98,8 +98,8 @@ def trimName(name: String): String = {
 def paintMessage(message: String): String = {
 	val timeStamps = parseTime replaceAllIn (message, s"$YELLOW$$0$RESET")
 	val blocks = parseBlock replaceAllIn (timeStamps, s"$BOLD$CYAN$$0$RESET")
-	val http = parseHttp replaceAllIn (blocks, s"$BOLD$YELLOW$$0$RESET")
-	val url = parseUrl replaceAllIn (http, s"$BOLD$BLUE$$0$RESET")
+	val emphasis = parseEmphasis replaceAllIn (blocks, s"$BOLD$YELLOW$$0$RESET")
+	val url = parseUrl replaceAllIn (emphasis, s"$BOLD$BLUE$$0$RESET")
 	val jslog = parseJsLog replaceAllIn (url, s"$BOLD$MAGENTA$$1$RESET$YELLOW$$2$RESET")
 	jslog
 }
@@ -121,6 +121,12 @@ while (line != null) {
 		val nameColour = getNameColour(rawName.trim(), proc)
 		val message = paintMessage(rawMessage.trim())
 		val tagColour = TagColours.get(tag).getOrElse(DefaultTagColour)
+		if (rawName.trim().startsWith("dalvik") && rawMessage.indexOf("with exception pending") != -1) {
+			val c = cols
+			val show = "EXCEPTION PENDING!"
+			val s = (c - show.size) / 2
+			println(s"$BLACK$RED_B" + space(s) + show + space(s) + RESET)
+		}
 		println(s"$nameColour$name $tagColour $tag $RESET $message")
 	}
 	mark = System.currentTimeMillis

@@ -55,7 +55,7 @@ maxTagWidth :: Int
 maxTagWidth = 18
 
 tagWidthReduceAt :: Int
-tagWidthReduceAt = 5
+tagWidthReduceAt = 10
 
 data LogState = LogState { getStyleCycle :: [IO ()]
                          , getTagStyles :: Map.Map String (IO ())
@@ -116,7 +116,7 @@ getTagStyle initState tag =
 
 adjustTagWidth :: LogState -> String -> LogState
 adjustTagWidth initState tag
-  | n > tw = initState { getTagWidth = tw + 1, getTagWidthInertia = 0 }
+  | n > tw && tw <= maxTagWidth = initState { getTagWidth = tw + 1, getTagWidthInertia = 0 }
   | n < tw && twi >= tagWidthReduceAt = initState { getTagWidth = tw - 1, getTagWidthInertia = 0 }
   | n < tw = initState { getTagWidthInertia = twi + 1 }
   | n == tw = initState { getTagWidthInertia = 0 }

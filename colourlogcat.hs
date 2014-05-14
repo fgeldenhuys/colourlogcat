@@ -54,9 +54,13 @@ presetTagStyles = [ ("System.err", setSGR [SetColor Foreground Dull Black] >> se
 maxTagWidth :: Int
 maxTagWidth = 18
 
+tagWidthReduceAt :: Int
+tagWidthReduceAt = 5
+
 data LogState = LogState { getStyleCycle :: [IO ()]
                          , getTagStyles :: Map.Map String (IO ())
                          , getTagWidth :: Int
+                         , getTagWidthInertia :: Int
                          }
 
 main :: IO ()
@@ -66,6 +70,7 @@ main = do
   process LogState { getStyleCycle = styleCycle
                    , getTagStyles = tagStyles
                    , getTagWidth = 9
+                   , getTagWidthInertia = 0
                    }
 
 process :: LogState -> IO ()
@@ -86,7 +91,8 @@ printLog initState log = do
   putStr $ printf " %1s " $ show (getLevel log)
   setSGR [Reset]
   -- Print package tag
-  let (tagStyle, tagState) = getTagStyle initState (getTag log)
+  let (tagStyle, tmpState) = getTagStyle initState (getTag log)
+      tagState = adjustTagWidth tmpState (getTag log)
   tagStyle
   putStr $ printf " %s " $ boxString (getTag log) (getTagWidth tagState)
   setSGR [Reset]
@@ -108,7 +114,16 @@ getTagStyle initState tag =
                               , getTagStyles = newTagStyles
                               })
 
---getTagWidth :: LogState -> String ->
+adjustTagWidth :: LogState -> String -> LogState
+adjustTagWidth initState tag
+  | n > tw = initState { getTagWidth = tw + 1, getTagWidthInertia = 0 }
+  | n < tw && twi >= tagWidthReduceAt = initState { getTagWidth = tw - 1, getTagWidthInertia = 0 }
+  | n < tw = initState { getTagWidthInertia = twi + 1 }
+  | n == tw = initState { getTagWidthInertia = 0 }
+  where
+    n = length tag
+    tw = getTagWidth initState
+    twi = getTagWidthInertia initState
 
 boxString :: String -> Int -> String
 boxString src width

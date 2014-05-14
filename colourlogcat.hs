@@ -51,15 +51,22 @@ presetTagStyles = [ ("System.err", setSGR [SetColor Foreground Dull Black] >> se
                   , ("System.out", setSGR [SetColor Foreground Dull Black] >> setSGR [SetColor Background Dull Green])
                   ]
 
+maxTagWidth :: Int
+maxTagWidth = 18
+
 data LogState = LogState { getStyleCycle :: [IO ()]
                          , getTagStyles :: Map.Map String (IO ())
+                         , getTagWidth :: Int
                          }
 
 main :: IO ()
 main = do
   let styleCycle = cycle styleOptions
   let tagStyles = Map.fromList presetTagStyles
-  process LogState {getStyleCycle = styleCycle, getTagStyles = tagStyles}
+  process LogState { getStyleCycle = styleCycle
+                   , getTagStyles = tagStyles
+                   , getTagWidth = 9
+                   }
 
 process :: LogState -> IO ()
 process initState = do
@@ -74,18 +81,19 @@ process initState = do
 
 printLog :: LogState -> LogEntry -> IO LogState
 printLog initState log = do
+  print log
   -- Print log level
   logLevelSGR $ getLevel log
   putStr $ printf " %1s " $ show (getLevel log)
   setSGR [Reset]
   -- Print package tag
-  (tagStyle, nextState) <- getTagStyle initState (getTag log)
+  (tagStyle, tagState) <- getTagStyle initState (getTag log)
   tagStyle
-  putStr $ printf " %s " $ getTag log
+  putStr $ printf " %s " $ boxString (getTag log) (getTagWidth tagState)
   setSGR [Reset]
   -- Print message
   putStrLn $ printf " %s" $ getMessage log
-  return nextState
+  return tagState
 
 getTagStyle :: LogState -> String -> IO (IO (), LogState)
 getTagStyle initState tag = do
@@ -101,6 +109,15 @@ getTagStyle initState tag = do
                                   , getTagStyles = newTagStyles
                                   })
 
+boxString :: String -> Int -> String
+boxString src width
+  | length src > width = reduce
+  | length src == width = src
+  | otherwise = pad
+  where
+    reduce = take width src
+    pad = replicate (width - length src) ' ' ++ src
+
 parseLine :: String -> Maybe LogEntry
 parseLine line = case parse logLine "(unknown)" line of
   Right (x:_) -> Just x
@@ -111,10 +128,10 @@ logLine = endBy body eol
 
 body = do
   level <- logLevel
-  package <- many (noneOf "(")
+  tag <- tagName
   pid <- processId
   message <- messageLine
-  return $ LogEntry level package pid message
+  return $ LogEntry level tag pid message
 
 eol = try (string "\n\r")
       <|> try (string "\r\n")
@@ -135,6 +152,12 @@ logLevel = do
 processId = do
   pid <- between (char '(') (char ')') (many (noneOf "()"))
   return (read pid :: Int)
+
+tagName = do
+  many space
+  tag <- many (noneOf "( ")
+  many space
+  return tag
 
 messageLine = do
   oneOf ":"

@@ -46,6 +46,11 @@ styleOptions = [ setSGR [SetColor Foreground Dull Blue] >> setSGR [SetColor Back
                , setSGR [SetColor Foreground Vivid Yellow] >> setSGR [SetColor Background Dull Black]
                ]
 
+presetTagStyles :: [(String, IO ())]
+presetTagStyles = [ ("System.err", setSGR [SetColor Foreground Dull Black] >> setSGR [SetColor Background Dull Red])
+                  , ("System.out", setSGR [SetColor Foreground Dull Black] >> setSGR [SetColor Background Dull Green])
+                  ]
+
 data LogState = LogState { getStyleCycle :: [IO ()]
                          , getTagStyles :: Map.Map String (IO ())
                          }
@@ -53,7 +58,8 @@ data LogState = LogState { getStyleCycle :: [IO ()]
 main :: IO ()
 main = do
   let styleCycle = cycle styleOptions
-  process LogState {getStyleCycle = styleCycle, getTagStyles = Map.empty}
+  let tagStyles = Map.fromList presetTagStyles
+  process LogState {getStyleCycle = styleCycle, getTagStyles = tagStyles}
 
 process :: LogState -> IO ()
 process initState = do
@@ -62,7 +68,7 @@ process initState = do
   nextState <- case log of
     Just entry -> printLog initState entry
     Nothing -> do
-      print line
+      putStrLn line
       return initState
   process nextState
 
@@ -119,7 +125,8 @@ logLevel = do
   level <- oneOf "DIWEF"
   char '/'
   return $ levelChar level
-  where levelChar 'D' = Debug
+  where levelChar 'V' = Verbose
+        levelChar 'D' = Debug
         levelChar 'I' = Info
         levelChar 'W' = Warn
         levelChar 'E' = Error

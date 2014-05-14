@@ -108,7 +108,7 @@ var mark = System.currentTimeMillis
 var line = readLine()
 while (line != null) {
 	val dt = System.currentTimeMillis - mark
-	if (dt > 1000) {
+	if (dt > 2000) {
 		val c = cols
 		val show = s"$dt"
 		val s = (c - show.length) / 2

@@ -81,13 +81,12 @@ process initState = do
 
 printLog :: LogState -> LogEntry -> IO LogState
 printLog initState log = do
-  print log
   -- Print log level
   logLevelSGR $ getLevel log
   putStr $ printf " %1s " $ show (getLevel log)
   setSGR [Reset]
   -- Print package tag
-  (tagStyle, tagState) <- getTagStyle initState (getTag log)
+  let (tagStyle, tagState) = getTagStyle initState (getTag log)
   tagStyle
   putStr $ printf " %s " $ boxString (getTag log) (getTagWidth tagState)
   setSGR [Reset]
@@ -95,19 +94,21 @@ printLog initState log = do
   putStrLn $ printf " %s" $ getMessage log
   return tagState
 
-getTagStyle :: LogState -> String -> IO (IO (), LogState)
-getTagStyle initState tag = do
+getTagStyle :: LogState -> String -> (IO (), LogState)
+getTagStyle initState tag =
   let currentTagStyles = getTagStyles initState
-  case Map.lookup tag currentTagStyles of
-    Just style -> return (style, initState)
-    Nothing -> do
+  in case Map.lookup tag currentTagStyles of
+    Just style -> (style, initState)
+    Nothing ->
       let styleCycle = getStyleCycle initState
-      let newStyle = head styleCycle
-      let newStyleCycle = tail styleCycle
-      let newTagStyles = Map.insert tag newStyle currentTagStyles
-      return (newStyle, initState { getStyleCycle = newStyleCycle
-                                  , getTagStyles = newTagStyles
-                                  })
+          newStyle = head styleCycle
+          newStyleCycle = tail styleCycle
+          newTagStyles = Map.insert tag newStyle currentTagStyles
+      in (newStyle, initState { getStyleCycle = newStyleCycle
+                              , getTagStyles = newTagStyles
+                              })
+
+--getTagWidth :: LogState -> String ->
 
 boxString :: String -> Int -> String
 boxString src width

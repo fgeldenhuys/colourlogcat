@@ -100,7 +100,6 @@ printLog log = do
   liftIO $ setSGR [Reset]
   -- Print message
   liftIO . putStrLn $ printf " %s" $ getMessage log
-  return ()
 
 getTagStyle :: String -> State LogState (IO ())
 getTagStyle tag = do

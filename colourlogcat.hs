@@ -1,5 +1,6 @@
-import Control.Monad
-import Text.ParserCombinators.Parsec
+import Control.Monad.State.Lazy
+import Text.ParserCombinators.Parsec ((<|>), between, char, endBy, many, noneOf,
+                                      oneOf, parse, space, string, try)
 import Text.Printf
 import System.Console.ANSI
 import qualified Data.Map as Map
@@ -78,52 +79,59 @@ process initState = do
   line <- getLine
   let log = parseLine line
   nextState <- case log of
-    Just entry -> printLog initState entry
+    Just entry -> execStateT (printLog entry) initState
     Nothing -> do
       putStrLn line
       return initState
   process nextState
 
-printLog :: LogState -> LogEntry -> IO LogState
-printLog initState log = do
+printLog :: LogEntry -> StateT LogState IO ()
+printLog log = do
   -- Print log level
-  logLevelSGR $ getLevel log
-  putStr $ printf " %1s " $ show (getLevel log)
-  setSGR [Reset]
+  liftIO . logLevelSGR $ getLevel log
+  liftIO . putStr $ printf " %1s " $ show (getLevel log)
+  liftIO $ setSGR [Reset]
   -- Print package tag
-  let (tagStyle, tmpState) = getTagStyle initState (getTag log)
-      tagState = adjustTagWidth tmpState (getTag log)
-  tagStyle
-  putStr $ printf " %s " $ boxString (getTag log) (getTagWidth tagState)
-  setSGR [Reset]
+  tagStyle <- state $ runState $ getTagStyle (getTag log)
+  state $ runState $ adjustTagWidth (getTag log)
+  liftIO tagStyle
+  tagWidth <- liftM getTagWidth get
+  liftIO . putStr $ printf " %s " $ boxString (getTag log) tagWidth
+  liftIO $ setSGR [Reset]
   -- Print message
-  putStrLn $ printf " %s" $ getMessage log
-  return tagState
+  liftIO . putStrLn $ printf " %s" $ getMessage log
+  return ()
 
-getTagStyle :: LogState -> String -> (IO (), LogState)
-getTagStyle initState tag =
-  let currentTagStyles = getTagStyles initState
-  in case Map.lookup tag currentTagStyles of
-    Just style -> (style, initState)
-    Nothing ->
-      let styleCycle = getStyleCycle initState
+getTagStyle :: String -> State LogState (IO ())
+getTagStyle tag = do
+  state <- get
+  let currentTagStyles = getTagStyles state
+  case Map.lookup tag currentTagStyles of
+    Just style -> return style
+    Nothing -> do
+      let styleCycle = getStyleCycle state
           newStyle = head styleCycle
           newStyleCycle = tail styleCycle
           newTagStyles = Map.insert tag newStyle currentTagStyles
-      in (newStyle, initState { getStyleCycle = newStyleCycle
-                              , getTagStyles = newTagStyles
-                              })
+      put $ state { getStyleCycle = newStyleCycle
+                  , getTagStyles = newTagStyles
+                  }
+      return newStyle
 
-adjustTagWidth :: LogState -> String -> LogState
-adjustTagWidth initState tag
-  | n > tw && tw <= maxTagWidth = initState { getTagWidth = tw + 1, getTagWidthInertia = 0 }
-  | n < tw && twi >= tagWidthReduceAt = initState { getTagWidth = tw - 1, getTagWidthInertia = 0 }
-  | n < tw = initState { getTagWidthInertia = twi + 1 }
-  | n == tw = initState { getTagWidthInertia = 0 }
-  where
-    n = length tag
-    tw = getTagWidth initState
-    twi = getTagWidthInertia initState
+adjustTagWidth :: String -> State LogState ()
+adjustTagWidth tag =
+  do state <- get
+     let n = length tag
+         tw = getTagWidth state
+         twi = getTagWidthInertia state
+     put $ adjust state n tw twi
+  where adjust state n tw twi
+          | n > tw && tw <= maxTagWidth =
+          state { getTagWidth = tw + 1, getTagWidthInertia = 0 }
+          | n < tw && twi >= tagWidthReduceAt =
+          state { getTagWidth = tw - 1, getTagWidthInertia = 0 }
+          | n < tw = state { getTagWidthInertia = twi + 1 }
+          | n == tw = state { getTagWidthInertia = 0 }
 
 boxString :: String -> Int -> String
 boxString src width

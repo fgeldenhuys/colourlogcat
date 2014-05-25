@@ -1,6 +1,8 @@
 import Control.Monad.State.Lazy
-import Text.ParserCombinators.Parsec ((<|>), between, char, endBy, many, noneOf,
-                                      oneOf, parse, space, string, try)
+import Debug.Trace
+import Text.ParserCombinators.Parsec (Parser, (<|>), between, char, choice, digit, endBy, lookAhead, many,
+                                      many1, manyTill, noneOf, notFollowedBy, oneOf,
+                                      parse, space, string, try, upper)
 import Text.Printf
 import System.Console.ANSI
 import qualified Data.Map as Map
@@ -29,11 +31,13 @@ logLevelSGR Error = do setSGR [SetColor Foreground Dull Black]
 logLevelSGR Fatal = do setSGR [SetColor Foreground Dull Black]
                        setSGR [SetColor Background Dull Magenta]
 
+data LogFragment = Text String | Emphasized String deriving Show
+
 data LogEntry = LogEntry { getLevel :: LogLevel
                          , getTag :: String
                          , getPid :: Int
-                         , getMessage :: String
-                         } deriving (Show)
+                         , getMessage :: [LogFragment]
+                         } deriving Show
 
 styleOptions :: [IO ()]
 styleOptions = [ setSGR [SetColor Foreground Dull Blue] >> setSGR [SetColor Background Dull Black]
@@ -63,6 +67,9 @@ data LogState = LogState { getStyleCycle :: [IO ()]
                          , getTagWidth :: Int
                          , getTagWidthInertia :: Int
                          }
+
+traceShow' :: Show a => a -> a
+traceShow' x = traceShow x x
 
 main :: IO ()
 main = do
@@ -99,7 +106,19 @@ printLog log = do
   liftIO . putStr $ printf " %s " $ boxString (getTag log) tagWidth
   liftIO $ setSGR [Reset]
   -- Print message
-  liftIO . putStrLn $ printf " %s" $ getMessage log
+  liftIO $ mapM printFragment (getMessage log)
+  liftIO $ setSGR [Reset]
+  liftIO $ putStrLn ""
+  return ()
+
+printFragment :: LogFragment -> IO ()
+printFragment fragment = do
+  case fragment of
+    Text text -> putStr $ printf " %s" text
+    Emphasized text -> do
+      setSGR [SetColor Foreground Dull White]
+      putStr $ printf " %s" text
+      setSGR [Reset]
 
 getTagStyle :: String -> State LogState (IO ())
 getTagStyle tag = do
@@ -176,13 +195,25 @@ processId = do
   pid <- between (char '(') (char ')') (many (noneOf "()"))
   return (read pid :: Int)
 
+tagName :: Parser String
 tagName = do
   many space
   tag <- many (noneOf "( ")
   many space
   return tag
 
+messageLine :: Parser [LogFragment]
 messageLine = do
-  oneOf ":"
-  many space
-  many (noneOf "\n\r")
+    oneOf ":"
+    many $ try emphasizedFragment <|> textFragment
+    where
+      emphasizedFragment = do
+        tab <- many (oneOf " \t")
+        start <- upper
+        text <- many1 (upper <|> digit <|> oneOf "_+-*!#$,.:/")
+        lookAhead $ oneOf " \t\n\r"
+        return $ Emphasized (tab ++ [start] ++ text)
+      textFragment = do
+        tab <- many (oneOf " \t")
+        text <- many1 (noneOf " \t\n\r")
+        return $ Text (tab ++ text)

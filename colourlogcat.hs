@@ -207,8 +207,10 @@ parseLine line = case parse logLine "(unknown)" line of
   Right [] -> Nothing
   Left _ -> Nothing
 
+logLine :: Parser [LogEntry]
 logLine = endBy body eol
 
+body :: Parser LogEntry
 body = do
   level <- logLevel
   tag <- tagName
@@ -216,11 +218,13 @@ body = do
   message <- messageLine
   return $ LogEntry level tag pid message
 
+eol :: Parser String
 eol = try (string "\n\r")
       <|> try (string "\r\n")
       <|> string "\n"
       <|> string "\r"
 
+logLevel :: Parser LogLevel
 logLevel = do
   level <- oneOf "DIWEF"
   char '/'
@@ -232,6 +236,7 @@ logLevel = do
         levelChar 'E' = Error
         levelChar 'F' = Fatal
 
+processId :: Parser Int
 processId = do
   pid <- between (char '(') (char ')') (many (noneOf "()"))
   return (read pid :: Int)

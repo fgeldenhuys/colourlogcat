@@ -1,7 +1,7 @@
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad.State.Lazy
 import Debug.Trace
-import Text.ParserCombinators.Parsec (Parser, (<|>), between, char, choice, digit, endBy, lookAhead, many,
+import Text.ParserCombinators.Parsec (Parser, (<|>), between, char, choice, count, digit, endBy, lookAhead, many,
                                       many1, manyTill, noneOf, notFollowedBy, oneOf,
                                       parse, space, string, try, upper)
 import Text.Printf
@@ -32,7 +32,10 @@ logLevelSGR Error = do setSGR [SetColor Foreground Dull Black]
 logLevelSGR Fatal = do setSGR [SetColor Foreground Dull Black]
                        setSGR [SetColor Background Dull Magenta]
 
-data LogFragment = Text String | Emphasized String deriving Show
+data LogFragment = Text String |
+                   Emphasized String |
+                   TimeStamp String
+                   deriving Show
 
 data LogEntry = LogEntry { getLevel :: LogLevel
                          , getTag :: String
@@ -44,7 +47,7 @@ styleOptions :: [IO ()]
 styleOptions = make <$> bg <*> fg
   where
     bg = [(Dull, Black), (Vivid, Green)]
-    fg = [(Dull, Red), (Dull, Green), (Dull, Yellow), (Dull, Blue), (Dull, Magenta), (Dull, Cyan), (Vivid, Red), (Vivid, Magenta)]
+    fg = [(Dull, Blue), (Dull, Magenta), (Dull, Green), (Dull, Red), (Dull, Yellow), (Dull, Cyan), (Vivid, Red), (Vivid, Magenta)]
     make b f = do
       setSGR [SetColor Background (fst b) (snd b)]
       setSGR [SetColor Foreground (fst f) (snd f)]
@@ -74,7 +77,7 @@ traceShow' x = traceShow x x
 
 main :: IO ()
 main = do
-  -- printColors
+  printColors
   let styleCycle = cycle styleOptions
   let tagStyles = Map.fromList presetTagStyles
   process LogState { getStyleCycle = styleCycle
@@ -134,6 +137,10 @@ printFragment fragment = do
     Text text -> putStr text
     Emphasized text -> do
       setSGR [SetColor Foreground Dull White]
+      putStr text
+      setSGR [Reset]
+    TimeStamp text -> do
+      setSGR [SetColor Foreground Vivid Green]
       putStr text
       setSGR [Reset]
 
@@ -223,8 +230,17 @@ tagName = do
 messageLine :: Parser [LogFragment]
 messageLine = do
     oneOf ":"
-    many $ try emphasizedFragment <|> textFragment
+    many $ try timeStampFragment <|> try emphasizedFragment <|> textFragment
     where
+      timeStampFragment = do
+        tab <- many (oneOf " \t")
+        date <- count 6 digit
+        char '.'
+        time <- count 6 digit
+        char '.'
+        millis <- count 3 digit
+        lookAhead $ oneOf " \t\n\r"
+        return $ TimeStamp $ printf "%s%s.%s.%s" tab date time millis
       emphasizedFragment = do
         tab <- many (oneOf " \t")
         start <- upper

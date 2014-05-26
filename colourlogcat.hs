@@ -52,6 +52,9 @@ styleOptions = make <$> bg <*> fg
 presetTagStyles :: [(String, IO ())]
 presetTagStyles = [ ("System.err", setSGR [SetColor Foreground Dull Black] >> setSGR [SetColor Background Dull Red])
                   , ("System.out", setSGR [SetColor Foreground Dull Black] >> setSGR [SetColor Background Dull Green])
+                  , ("dalvikvm", setSGR [SetColor Foreground Vivid Black] >> setSGR [SetColor Background Dull Yellow])
+                  , ("dalvikvm-heap", setSGR [SetColor Foreground Vivid Black] >> setSGR [SetColor Background Dull Yellow])
+                  , ("ActivityManager", setSGR [SetColor Foreground Vivid Black] >> setSGR [SetColor Background Dull Green])
                   ]
 
 maxTagWidth :: Int
@@ -71,7 +74,7 @@ traceShow' x = traceShow x x
 
 main :: IO ()
 main = do
-  printColors
+  -- printColors
   let styleCycle = cycle styleOptions
   let tagStyles = Map.fromList presetTagStyles
   process LogState { getStyleCycle = styleCycle

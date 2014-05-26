@@ -1,7 +1,10 @@
 import Control.Applicative ((<$>), (<*>))
+import Control.Monad (when)
 import Control.Monad.State.Lazy
+import Data.Time
 import Debug.Trace
-import Text.ParserCombinators.Parsec (Parser, (<|>), between, char, choice, count, digit, endBy, lookAhead, many,
+import Text.ParserCombinators.Parsec (Parser, (<|>), between, char, choice,
+                                      count, digit, endBy, lookAhead, many,
                                       many1, manyTill, noneOf, notFollowedBy, oneOf,
                                       parse, space, string, try, upper)
 import Text.Printf
@@ -47,7 +50,8 @@ styleOptions :: [IO ()]
 styleOptions = make <$> bg <*> fg
   where
     bg = [(Dull, Black), (Vivid, Green)]
-    fg = [(Dull, Blue), (Dull, Magenta), (Dull, Green), (Dull, Red), (Dull, Yellow), (Dull, Cyan), (Vivid, Red), (Vivid, Magenta)]
+    fg = [ (Dull, Blue), (Dull, Magenta), (Dull, Green), (Dull, Red)
+         , (Dull, Yellow), (Dull, Cyan), (Vivid, Red), (Vivid, Magenta)]
     make b f = do
       setSGR [SetColor Background (fst b) (snd b)]
       setSGR [SetColor Foreground (fst f) (snd f)]
@@ -66,10 +70,14 @@ maxTagWidth = 18
 tagWidthReduceAt :: Int
 tagWidthReduceAt = 10
 
+showPauseTime :: NominalDiffTime
+showPauseTime = 5
+
 data LogState = LogState { getStyleCycle :: [IO ()]
                          , getTagStyles :: Map.Map String (IO ())
                          , getTagWidth :: Int
                          , getTagWidthInertia :: Int
+                         , getLastTime :: UTCTime
                          }
 
 traceShow' :: Show a => a -> a
@@ -77,13 +85,15 @@ traceShow' x = traceShow x x
 
 main :: IO ()
 main = do
-  printColors
+  -- printColors
   let styleCycle = cycle styleOptions
   let tagStyles = Map.fromList presetTagStyles
+  now <- getCurrentTime
   process LogState { getStyleCycle = styleCycle
                    , getTagStyles = tagStyles
                    , getTagWidth = 9
                    , getTagWidthInertia = 0
+                   , getLastTime = now
                    }
 
 printColors :: IO ()
@@ -103,6 +113,12 @@ printColors = do
 
 process :: LogState -> IO ()
 process initState = do
+  now <- getCurrentTime
+  let deltaTime = diffUTCTime now (getLastTime initState)
+  when (deltaTime > showPauseTime) $ do
+    setSGR [SetColor Foreground Vivid Magenta]
+    putStrLn $ printf "\t --- %s --- " (show deltaTime)
+    setSGR [Reset]
   line <- getLine
   let log = parseLine line
   nextState <- case log of
@@ -110,7 +126,7 @@ process initState = do
     Nothing -> do
       putStrLn line
       return initState
-  process nextState
+  process nextState { getLastTime = now }
 
 printLog :: LogEntry -> StateT LogState IO ()
 printLog log = do

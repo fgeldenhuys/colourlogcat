@@ -17,4 +17,4 @@ cabal-version:       >=1.8
 executable colourlogcat
   main-is: colourlogcat.hs
   -- other-modules:       
-  build-depends:       base ==4.6.*, containers, mtl ==2.1.*, parsec ==3.1.*, ansi-terminal
+  build-depends:       base ==4.6.*, containers, mtl ==2.1.*, time, parsec ==3.1.*, ansi-terminal

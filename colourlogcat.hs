@@ -114,10 +114,10 @@ printLog log = do
 printFragment :: LogFragment -> IO ()
 printFragment fragment = do
   case fragment of
-    Text text -> putStr $ printf " %s" text
+    Text text -> putStr text
     Emphasized text -> do
       setSGR [SetColor Foreground Dull White]
-      putStr $ printf " %s" text
+      putStr text
       setSGR [Reset]
 
 getTagStyle :: String -> State LogState (IO ())

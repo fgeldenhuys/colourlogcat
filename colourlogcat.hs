@@ -1,3 +1,4 @@
+import Control.Applicative ((<$>), (<*>))
 import Control.Monad.State.Lazy
 import Debug.Trace
 import Text.ParserCombinators.Parsec (Parser, (<|>), between, char, choice, digit, endBy, lookAhead, many,
@@ -20,9 +21,9 @@ instance Show LogLevel where
 logLevelSGR :: LogLevel -> IO ()
 logLevelSGR Verbose = do setSGR [SetColor Foreground Vivid White]
                          setSGR [SetColor Background Dull Blue]
-logLevelSGR Debug = do setSGR [SetColor Foreground Vivid Yellow]
+logLevelSGR Debug = do setSGR [SetColor Foreground Vivid Black]
                        setSGR [SetColor Background Dull Blue]
-logLevelSGR Info = do setSGR [SetColor Foreground Vivid Cyan]
+logLevelSGR Info = do setSGR [SetColor Foreground Vivid White]
                       setSGR [SetColor Background Dull Blue]
 logLevelSGR Warn = do setSGR [SetColor Foreground Dull Black]
                       setSGR [SetColor Background Dull Yellow]
@@ -40,16 +41,13 @@ data LogEntry = LogEntry { getLevel :: LogLevel
                          } deriving Show
 
 styleOptions :: [IO ()]
-styleOptions = [ setSGR [SetColor Foreground Dull Blue] >> setSGR [SetColor Background Dull Black]
-               , setSGR [SetColor Foreground Dull Cyan] >> setSGR [SetColor Background Dull Black]
-               , setSGR [SetColor Foreground Dull Magenta] >> setSGR [SetColor Background Dull Black]
-               , setSGR [SetColor Foreground Dull White] >> setSGR [SetColor Background Dull Black]
-               , setSGR [SetColor Foreground Dull Yellow] >> setSGR [SetColor Background Dull Black]
-               , setSGR [SetColor Foreground Vivid Cyan] >> setSGR [SetColor Background Dull Black]
-               , setSGR [SetColor Foreground Vivid Magenta] >> setSGR [SetColor Background Dull Black]
-               , setSGR [SetColor Foreground Vivid White] >> setSGR [SetColor Background Dull Black]
-               , setSGR [SetColor Foreground Vivid Yellow] >> setSGR [SetColor Background Dull Black]
-               ]
+styleOptions = make <$> bg <*> fg
+  where
+    bg = [(Dull, Black), (Vivid, Green)]
+    fg = [(Dull, Red), (Dull, Green), (Dull, Yellow), (Dull, Blue), (Dull, Magenta), (Dull, Cyan), (Vivid, Red), (Vivid, Magenta)]
+    make b f = do
+      setSGR [SetColor Background (fst b) (snd b)]
+      setSGR [SetColor Foreground (fst f) (snd f)]
 
 presetTagStyles :: [(String, IO ())]
 presetTagStyles = [ ("System.err", setSGR [SetColor Foreground Dull Black] >> setSGR [SetColor Background Dull Red])
@@ -73,6 +71,7 @@ traceShow' x = traceShow x x
 
 main :: IO ()
 main = do
+  printColors
   let styleCycle = cycle styleOptions
   let tagStyles = Map.fromList presetTagStyles
   process LogState { getStyleCycle = styleCycle
@@ -80,6 +79,21 @@ main = do
                    , getTagWidth = 9
                    , getTagWidthInertia = 0
                    }
+
+printColors :: IO ()
+printColors = do
+  let colors = combine <$> [("Dull", Dull), ("Vivid", Vivid)] <*>
+               [("Black", Black), ("Red", Red), ("Green", Green)
+               , ("Yellow", Yellow), ("Blue", Blue), ("Magenta", Magenta)
+               , ("Cyan", Cyan), ("White", White)]
+  mapM_ printColor colors
+  return ()
+  where
+    combine a b = (fst a ++ " " ++ fst b, (snd a, snd b))
+    printColor pair = do
+      let (text, c) = pair
+      setSGR [SetColor Foreground (fst c) (snd c)]
+      putStrLn text
 
 process :: LogState -> IO ()
 process initState = do

@@ -144,10 +144,11 @@ adjustTagWidth tag =
          twi = getTagWidthInertia state
      put $ adjust state n tw twi
   where adjust state n tw twi
-          | n > tw && tw <= maxTagWidth =
-          state { getTagWidth = tw + 1, getTagWidthInertia = 0 }
+          | n > tw && tw < maxTagWidth =
+            state { getTagWidth = tw + 1, getTagWidthInertia = 0 }
+          | n > tw = state
           | n < tw && twi >= tagWidthReduceAt =
-          state { getTagWidth = tw - 1, getTagWidthInertia = 0 }
+            state { getTagWidth = tw - 1, getTagWidthInertia = 0 }
           | n < tw = state { getTagWidthInertia = twi + 1 }
           | n == tw = state { getTagWidthInertia = 0 }
 

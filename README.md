@@ -3,6 +3,13 @@ colourlogcat
 
 Colour adb logcat to make it more readable.
 
+*Haskell version*
+
+cabal build
+
+adb logcat | ./dist/build/colourlogcat/colourlogcat
+
+Or put the executable somewhere better.
 
 *Scala version*
 

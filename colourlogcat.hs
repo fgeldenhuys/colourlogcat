@@ -45,6 +45,7 @@ data LogEntry = LogEntry { getLevel :: LogLevel
                          , getPid :: Int
                          , getMessage :: [LogFragment]
                          }
+              | LogComment { getText :: String }
               | LogError { getError :: String
                          , getRaw :: String
                          }
@@ -127,6 +128,12 @@ process initState = do
   let log = parseLine line
   nextState <- case log of
     LogEntry {} -> execStateT (printLog log) initState
+    LogComment text -> do
+      setSGR [SetColor Background Dull Blue]
+      setSGR [SetColor Foreground Dull Black]
+      putStrLn $ text ++ " "
+      setSGR [Reset]
+      return initState
     LogError err raw -> do
       setSGR [SetColor Background Vivid Red]
       setSGR [SetColor Foreground Vivid Black]
@@ -217,19 +224,19 @@ parseLine line = case parse parseLogEntry "(unknown)" line of
   Right x -> x
 
 parseLogEntry :: Parser LogEntry
-parseLogEntry = do
+parseLogEntry = try logComment <|> do
   level <- logLevel
   tag <- tagName
   pid <- processId
   message <- messageLine
   return $ LogEntry level tag pid message
 
-eol :: Parser String
-eol = try (string "\n\r")
-      <|> try (string "\r\n")
-      <|> string "\n"
-      <|> string "\r"
-      <?> "Could not find end of line"
+logComment :: Parser LogEntry
+logComment = do
+  lookAhead (char '-')
+  text <- many1 (noneOf "\n\r") <?> "comment text"
+  many (oneOf "\n\r")
+  return $ LogComment text
 
 logLevel :: Parser LogLevel
 logLevel = do

@@ -1,3 +1,4 @@
+
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (when)
 import Control.Monad.State.Lazy
@@ -37,6 +38,7 @@ logLevelSGR Fatal = do setSGR [SetColor Foreground Dull Black]
 
 data LogFragment = Text String |
                    Emphasized String |
+                   BlockBrackets String |
                    TimeStamp String
                    deriving Show
 
@@ -90,7 +92,7 @@ traceShow' x = traceShow x x
 
 main :: IO ()
 main = do
-  -- printColors
+  printColors
   let styleCycle = cycle styleOptions
   let tagStyles = Map.fromList presetTagStyles
   now <- getCurrentTime
@@ -165,11 +167,15 @@ printLog log = do
   return ()
 
 printFragment :: LogFragment -> IO ()
-printFragment fragment = do
+printFragment fragment =
   case fragment of
     Text text -> putStr text
     Emphasized text -> do
       setSGR [SetColor Foreground Dull White]
+      putStr text
+      setSGR [Reset]
+    BlockBrackets text -> do
+      setSGR [SetColor Foreground Dull Cyan]
       putStr text
       setSGR [Reset]
     TimeStamp text -> do
@@ -268,6 +274,7 @@ messageLine = do
     oneOf ":" <?> "Colon after process id"
     many (try timeStampFragment
           <|> try emphasizedFragment
+          <|> try blockBracketsFragment
           <|> try textFragment
           <|> paddingFragment
           <?> "Unknown message fragment")
@@ -287,6 +294,12 @@ messageLine = do
         text <- many1 (upper <|> digit <|> oneOf "_+-*!#$,.:/")
         lookAhead $ oneOf " \t\n\r"
         return $ Emphasized (tab ++ [start] ++ text)
+      blockBracketsFragment = do
+        tab <- many (oneOf " \t") <?> "whitespace"
+        char '[' <?> "open block bracket"
+        text <- many1 (noneOf "]\n\r") <?> "block bracket text"
+        char ']' <?> "close block bracket"
+        return $ BlockBrackets $ printf "%s[%s]" tab text
       textFragment = do
         tab <- many (oneOf " \t") <?> "whitespace"
         text <- many1 (noneOf " \t\n\r") <?> "message text"

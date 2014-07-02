@@ -1,8 +1,9 @@
-
 import Control.Applicative ((<$>), (<*>))
+import qualified Control.Exception as CE
 import Control.Monad (when)
 import Control.Monad.State.Lazy
 import Data.Time
+import qualified Data.Map as Map
 import Debug.Trace
 import Text.ParserCombinators.Parsec (Parser, (<|>), (<?>), between, char, choice,
                                       count, digit, endBy, lookAhead, many,
@@ -10,7 +11,8 @@ import Text.ParserCombinators.Parsec (Parser, (<|>), (<?>), between, char, choic
                                       parse, space, string, try, upper)
 import Text.Printf
 import System.Console.ANSI
-import qualified Data.Map as Map
+import System.IO
+import System.IO.Error
 
 data LogLevel = Verbose | Debug | Info | Warn | Error | Fatal
 
@@ -92,6 +94,7 @@ traceShow' x = traceShow x x
 
 main :: IO ()
 main = do
+  hSetEncoding stdin utf8_bom
   printColors
   let styleCycle = cycle styleOptions
   let tagStyles = Map.fromList presetTagStyles
@@ -126,7 +129,7 @@ process initState = do
     setSGR [SetColor Foreground Vivid Magenta]
     putStrLn $ printf "\t --- %s --- " (show deltaTime)
     setSGR [Reset]
-  line <- getLine
+  line <- CE.handle (\e -> return $ "-- " ++ (show (e :: IOError))) getLine
   let log = parseLine line
   nextState <- case log of
     LogEntry {} -> execStateT (printLog log) initState

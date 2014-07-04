@@ -129,7 +129,7 @@ process initState = do
     setSGR [SetColor Foreground Vivid Magenta]
     putStrLn $ printf "\t --- %s --- " (show deltaTime)
     setSGR [Reset]
-  line <- CE.handle (\e -> return $ "-- " ++ (show (e :: IOError))) getLine
+  line <- CE.handle handleInputError getLine
   let log = parseLine line
   nextState <- case log of
     LogEntry {} -> execStateT (printLog log) initState
@@ -149,6 +149,11 @@ process initState = do
       setSGR [Reset]
       return initState
   process nextState { getLastTime = now }
+  where
+    handleInputError e =
+      if isEOFError e
+        then error "End Of File"
+        else return $ "-- " ++ (show (e :: IOError))
 
 printLog :: LogEntry -> StateT LogState IO ()
 printLog log = do

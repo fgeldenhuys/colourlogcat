@@ -94,7 +94,7 @@ traceShow' x = traceShow x x
 
 main :: IO ()
 main = do
-  hSetEncoding stdin utf8_bom
+  hSetEncoding stdin char8
   printColors
   let styleCycle = cycle styleOptions
   let tagStyles = Map.fromList presetTagStyles

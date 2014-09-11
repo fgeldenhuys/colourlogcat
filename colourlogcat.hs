@@ -26,7 +26,7 @@ instance Show LogLevel where
 
 logLevelSGR :: LogLevel -> IO ()
 logLevelSGR Verbose = do setSGR [SetColor Foreground Vivid White]
-                         setSGR [SetColor Background Dull Blue]
+                         setSGR [SetColor Background Dull Yellow]
 logLevelSGR Debug = do setSGR [SetColor Foreground Vivid Black]
                        setSGR [SetColor Background Dull Blue]
 logLevelSGR Info = do setSGR [SetColor Foreground Vivid White]
@@ -254,8 +254,8 @@ logComment = do
 
 logLevel :: Parser LogLevel
 logLevel = do
-  level <- oneOf "DIWEF" <?> "Valid log level character"
-  char '/' <?> "Slash after log level"
+  level <- oneOf "VDIWEF" <?> "valid log level character"
+  char '/' <?> "slash after log level"
   return $ levelChar level
   where levelChar 'V' = Verbose
         levelChar 'D' = Debug
@@ -267,19 +267,19 @@ logLevel = do
 processId :: Parser Int
 processId = do
   pid <- between (char '(') (char ')') (many (noneOf "()"))
-         <?> "Process id in brackets"
+         <?> "process id in brackets"
   return (read pid :: Int)
 
 tagName :: Parser String
 tagName = do
   many space
-  tag <- many (noneOf "( ")
+  tag <- many (noneOf "(")
   many space
   return tag
 
 messageLine :: Parser [LogFragment]
 messageLine = do
-    oneOf ":" <?> "Colon after process id"
+    oneOf ":" <?> "colon after process id"
     many (try timeStampFragment
           <|> try emphasizedFragment
           <|> try blockBracketsFragment
